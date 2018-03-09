@@ -3729,7 +3729,7 @@ void CWallet::LearnAllRelatedScripts(const CPubKey& key)
 CTxDestination GetDestinationForKey(const CPubKey& key, OutputType type)
 {
     switch (type) {
-    case OUTPUT_TYPE_LEGACY: return key.GetID();
+    case OUTPUT_TYPE_P2PKH: return key.GetID();
     case OUTPUT_TYPE_P2SH_SEGWIT:
     case OUTPUT_TYPE_BECH32: {
         if (!key.IsCompressed()) return key.GetID();
