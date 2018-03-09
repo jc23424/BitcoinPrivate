@@ -154,9 +154,9 @@ public:
         obj.pushKV("iswitness", true);
         obj.pushKV("witness_version", 0);
         obj.pushKV("witness_program", HexStr(id.begin(), id.end()));
-        //if (pwallet && pwallet->GetPubKey(CKeyID(id), pubkey)) {
-        //obj.pushKV("pubkey", HexStr(pubkey));
-        //}
+        if (pwalletMain && pwalletMain->GetPubKey(CKeyID(id), pubkey)) {
+            obj.pushKV("pubkey", HexStr(pubkey));
+        }
         return obj;
     }
 
@@ -171,9 +171,9 @@ public:
         CRIPEMD160 hasher;
         uint160 hash;
         hasher.Write(id.begin(), 32).Finalize(hash.begin());
-        //if (pwallet && pwallet->GetCScript(CScriptID(hash), subscript)) {
-        //ProcessSubScript(subscript, obj);
-        //}
+        if (pwalletMain && pwalletMain->GetCScript(CScriptID(hash), subscript)) {
+            ProcessSubScript(subscript, obj);
+        }
         return obj;
     }
 

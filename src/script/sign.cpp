@@ -86,6 +86,7 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
         keyID = CPubKey(vSolutions[0]).GetID();
         return Sign1(keyID, creator, scriptPubKey, scriptSigRet);
     case TX_PUBKEYHASH:
+    case TX_WITNESS_V0_KEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
         if (!Sign1(keyID, creator, scriptPubKey, scriptSigRet))
             return false;
@@ -101,18 +102,13 @@ static bool SignStep(const BaseSignatureCreator& creator, const CScript& scriptP
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, creator, scriptPubKey, scriptSigRet));
-    case TX_WITNESS_V0_KEYHASH:
-        ret.push_back(vSolutions[0]);
-        return true;
 
     case TX_WITNESS_V0_SCRIPTHASH:
+    {
+        uint160 h160;
         CRIPEMD160().Write(&vSolutions[0][0], vSolutions[0].size()).Finalize(h160.begin());
-        if (creator.KeyStore().GetCScript(h160, scriptRet)) {
-            ret.push_back(std::vector<unsigned char>(scriptRet.begin(), scriptRet.end()));
-            return true;
-        }
-        return false;
-
+        return creator.KeyStore().GetCScript(h160, scriptSigRet);
+    }
     default:
         return false;
     }
