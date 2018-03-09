@@ -127,7 +127,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
         pwalletMain->MarkDirty();
         // We don't know which corresponding address will be used; label them all
         for (const auto& dest : GetAllDestinationsForKey(pubkey)) {
-            pwallet->SetAddressBook(dest, strLabel, "receive");
+            pwalletMain->SetAddressBook(dest, strLabel, "receive");
         }
 
         // Don't throw error in case a key is already there
@@ -140,7 +140,7 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
 
         if (!pwalletMain->AddKeyPubKey(key, pubkey))
             throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
-        pwallet->LearnAllRelatedScripts(pubkey);
+        pwalletMain->LearnAllRelatedScripts(pubkey);
     }
 
     if (fRescan) {

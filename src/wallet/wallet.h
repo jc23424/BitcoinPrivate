@@ -80,6 +80,16 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
+enum OutputType : int
+{
+    OUTPUT_TYPE_NONE,
+    OUTPUT_TYPE_P2PKH,
+    OUTPUT_TYPE_P2SH_SEGWIT,
+    OUTPUT_TYPE_BECH32,
+
+    OUTPUT_TYPE_DEFAULT = OUTPUT_TYPE_P2PKH
+};
+
 
 /** A key pool entry */
 class CKeyPool
@@ -321,7 +331,8 @@ public:
     }
 
     int SetMerkleBranch(const CBlock& block);
-    int GetHeightInMainChain() const;
+    int GetHeightInMainChain(const CBlockIndex* &pindexRet) const;
+    int GetHeightInMainChain() const { const CBlockIndex *pindexRet; return GetHeightInMainChain(pindexRet); }
 
     /**
      * Return depth of transaction in blockchain:
@@ -1042,6 +1053,25 @@ public:
     /* Find notes filtered by payment address, min depth, ability to spend */
     void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth=1, bool ignoreSpent=true);
 
+    /**
+     * Explicitly make the wallet learn the related scripts for outputs to the
+     * given key. This is purely to make the wallet file compatible with older
+     * software, as CBasicKeyStore automatically does this implicitly for all
+     * keys now.
+     */
+    void LearnRelatedScripts(const CPubKey& key, OutputType);
+
+    /**
+     * Same as LearnRelatedScripts, but when the OutputType is not known (and could
+     * be anything).
+     */
+    void LearnAllRelatedScripts(const CPubKey& key);
+
+    /**
+     * Get a destination of the requested type (if possible) to the specified script.
+     * This function will automatically add the necessary scripts to the wallet.
+     */
+    CTxDestination AddAndGetDestinationForScript(const CScript& script, OutputType);
 };
 
 /** A key allocated from the key pool. */
@@ -1180,5 +1210,14 @@ public:
 private:
     std::vector<char> _ssExtra;
 };
+
+/**
+ * Get a destination of the requested type (if possible) to the specified key.
+ * The caller must make sure LearnRelatedScripts has been called beforehand.
+ */
+CTxDestination GetDestinationForKey(const CPubKey& key, OutputType);
+
+/** Get all destinations (potentially) supported by the wallet for the given key. */
+std::vector<CTxDestination> GetAllDestinationsForKey(const CPubKey& key);
 
 #endif // BITCOIN_WALLET_WALLET_H
