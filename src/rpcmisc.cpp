@@ -112,6 +112,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
 class DescribeAddressVisitor : public boost::static_visitor<UniValue>
 {
 public:
+
     UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
 
     UniValue operator()(const CKeyID &keyID) const {
@@ -172,7 +173,18 @@ public:
         uint160 hash;
         hasher.Write(id.begin(), 32).Finalize(hash.begin());
         if (pwalletMain && pwalletMain->GetCScript(CScriptID(hash), subscript)) {
-            ProcessSubScript(subscript, obj);
+            std::vector<CTxDestination> addresses;
+            txnouttype whichType;
+            int nRequired;
+            ExtractDestinations(subscript, whichType, addresses, nRequired);
+            obj.push_back(Pair("script", GetTxnOutputType(whichType)));
+            obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
+            UniValue a(UniValue::VARR);
+            BOOST_FOREACH(const CTxDestination& addr, addresses)
+                a.push_back(CBitcoinAddress(addr).ToString());
+            obj.push_back(Pair("addresses", a));
+            if (whichType == TX_MULTISIG)
+                obj.push_back(Pair("sigsrequired", nRequired));
         }
         return obj;
     }
