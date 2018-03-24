@@ -119,7 +119,6 @@ void EraseOrphansFor(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
  * Returns true if there are nRequired or more blocks of minVersion or above
  * in the last Consensus::Params::nMajorityWindow blocks, starting at pstart and going backwards.
  */
-static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequired, const Consensus::Params& consensusParams);
 static void CheckBlockIndex();
 
 /** Constant stuff for coinbase transactions we create: */
@@ -1648,12 +1647,12 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
             // mark an outpoint spent, and construct undo information
             txundo.vprevout.push_back(CTxInUndo(coins->vout[nPos]));
             coins->Spend(nPos);
-            if (coins->vout.size() == 0) {
-                CTxInUndo& undo = txundo.vprevout.back();
-                undo.nHeight = coins->nHeight;
-                undo.fCoinBase = coins->fCoinBase;
-                undo.nVersion = coins->nVersion;
-            }
+            //if (coins->vout.size() == 0) {
+            CTxInUndo& undo = txundo.vprevout.back();
+            undo.nHeight = coins->nHeight;
+            undo.fCoinBase = coins->fCoinBase;
+            undo.nVersion = coins->nVersion;
+            //}
         }
     }
 
@@ -3275,7 +3274,6 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex * const pindexPrev)
 {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
-    const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // Check that all transactions are finalized
     BOOST_FOREACH(const CTransaction& tx, block.vtx) {
@@ -3512,19 +3510,6 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CBlockIndex** ppindex, 
 
     return true;
 }
-
-static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned nRequired, const Consensus::Params& consensusParams)
-{
-    unsigned int nFound = 0;
-    for (int i = 0; i < consensusParams.nMajorityWindow && nFound < nRequired && pstart != NULL; i++)
-    {
-        if (pstart->nVersion >= minVersion)
-            ++nFound;
-        pstart = pstart->pprev;
-    }
-    return (nFound >= nRequired);
-}
-
 
 bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, bool fForceProcessing, CDiskBlockPos *dbp)
 {
@@ -3935,6 +3920,24 @@ bool CVerifyDB::VerifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth
             if (!pos.IsNull()) {
                 if (!UndoReadFromDisk(undo, pos, pindex->pprev->GetBlockHash()))
                     return error("VerifyDB(): *** found bad undo data at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+
+                CAmount orig = 0;
+                CAmount fork = 0;
+                CAmount post = 0;
+                for(auto it = undo.vtxundo.begin(); it != undo.vtxundo.end(); it++) {
+                    CTxUndo txu = *it;
+                    for(auto it2 = txu.vprevout.begin(); it2 != txu.vprevout.end(); it2++) {
+                        CTxInUndo c = *it2;
+                        if(c.nHeight <= forkStartHeight)
+                            orig += c.txout.nValue;
+                        else if(c.nHeight <= forkStartHeight + forkHeightRange)
+                            fork += c.txout.nValue;
+                        else
+                            post += c.txout.nValue;
+                    }
+                }
+
+                LogPrintf("UNDODATA: %d: pre=%d fork=%d post=%d\n", pindex->nHeight, orig, fork, post);
             }
         }
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
